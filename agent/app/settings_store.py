@@ -20,6 +20,7 @@ from app.models import (
     Settings,
     Thresholds,
 )
+from app.paths import normalize_path
 
 logger = logging.getLogger("shieldguard.settings")
 
@@ -206,9 +207,7 @@ class SettingsStore:
                 return True
             if e.path and path:
                 try:
-                    if os.path.normcase(os.path.normpath(e.path)) == os.path.normcase(
-                        os.path.normpath(path)
-                    ):
+                    if normalize_path(e.path) == normalize_path(path):
                         return True
                 except Exception:  # pragma: no cover - defensive
                     continue

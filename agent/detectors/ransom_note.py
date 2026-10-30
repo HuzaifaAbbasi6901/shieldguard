@@ -14,6 +14,7 @@ import time
 from collections import deque
 from typing import Deque, Optional, Tuple
 
+from app.paths import basename_any, normalize_path
 from detectors.models import FileEvent, Signal
 
 logger = logging.getLogger("shieldguard.ransom_note")
@@ -35,7 +36,7 @@ MIN_DIRS = 2
 
 def is_note_name(name: str) -> bool:
     """True when a file name matches the ransom-note name pattern + ext."""
-    base = os.path.basename(name)
+    base = basename_any(name)
     stem, dot, ext = base.rpartition(".")
     if not dot or ext.lower() not in NOTE_EXTS:
         return False
@@ -64,7 +65,7 @@ class RansomNoteDetector:
 
         now = float(event.ts)
         dir_of = os.path.dirname(path)
-        scope = folder or dir_of
+        scope = normalize_path(folder or dir_of)
         with self._lock:
             self._notes.append((now, scope))
             cutoff = now - WINDOW_SECONDS

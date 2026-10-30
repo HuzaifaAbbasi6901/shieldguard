@@ -14,6 +14,7 @@ import time
 import zipfile
 from typing import Dict, Iterable, List, Optional
 
+from app.paths import normalize_path
 from detectors.models import FileEvent, Signal
 
 logger = logging.getLogger("shieldguard.canary")
@@ -169,8 +170,8 @@ class CanaryManager:
 
     @staticmethod
     def normalize(path: str) -> str:
-        """Normalize a path for comparison (casefold, no trailing sep)."""
-        return os.path.normcase(os.path.normpath(os.path.abspath(path)))
+        """Normalize a path for comparison (cross-platform, casefolded)."""
+        return normalize_path(path)
 
     def register(self, path: str) -> None:
         """Register an existing path as a canary (without writing)."""

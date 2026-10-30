@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, List, Optional
 
 from app.models import AllowlistEntry, ProcessInfo
+from app.paths import normalize_path
 from detectors.models import Signal
 
 logger = logging.getLogger("shieldguard.scoring")
@@ -208,6 +209,6 @@ class ScoreEngine:
 def os_paths_equal(a: str, b: str) -> bool:
     """Platform-tolerant path equality."""
     try:
-        return os.path.normcase(os.path.normpath(a)) == os.path.normcase(os.path.normpath(b))
+        return normalize_path(a) == normalize_path(b)
     except Exception:  # pragma: no cover - defensive
         return a == b
