@@ -6,16 +6,16 @@
 
 **Ransomware & data-theft early warning for everyone — not just for sysadmins.**
 
-[![CI](https://github.com/YOUR_GITHUB_PLACEHOLDER/shieldguard/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_GITHUB_PLACEHOLDER/shieldguard/actions/workflows/ci.yml)
+[![CI](https://github.com/HuzaifaAbbasi6901/shieldguard/actions/workflows/ci.yml/badge.svg)](https://github.com/HuzaifaAbbasi6901/shieldguard/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)](LICENSE)
-[![Live demo](https://img.shields.io/badge/live_demo-Vercel-000000?logo=vercel)](LIVE_DEMO_URL_PLACEHOLDER)
+[![Live demo](https://img.shields.io/badge/live_demo-Vercel-000000?logo=vercel)](https://shieldguard-bay.vercel.app)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 **A local agent watches your folders, processes, and network for ransomware-like
 behavior and data theft — and warns you in plain language, with one-click protective
 actions. 100% local. No telemetry. No jargon.**
 
-[Live demo (Demo Mode)](LIVE_DEMO_URL_PLACEHOLDER) · [Quick start](#-quick-start) · [How detection works](docs/detection-logic.md) · [Screenshots](docs/screenshots)
+[Live demo (Demo Mode)](https://shieldguard-bay.vercel.app) · [Quick start](#-quick-start) · [How detection works](docs/detection-logic.md) · [Screenshots](docs/screenshots)
 
 </div>
 
@@ -61,14 +61,14 @@ plain words, what to do next.
 ## 🚀 Quick start
 
 **Try it in 10 seconds (nothing to install):** open the live demo →
-<!-- placeholder filled after deploy --> [LIVE_DEMO_URL_PLACEHOLDER] → press
+[shieldguard-bay.vercel.app](https://shieldguard-bay.vercel.app) → press
 *Safe Simulator → Simulate ransomware behavior* and watch the system react.
 
 **Protect your real folders (5 minutes):**
 
 ```bash
 # 1. get the code
-git clone https://github.com/YOUR_GITHUB_PLACEHOLDER/shieldguard.git
+git clone https://github.com/HuzaifaAbbasi6901/shieldguard.git
 cd shieldguard
 
 # 2. start everything (installs dependencies on first run)
