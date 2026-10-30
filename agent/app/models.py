@@ -317,6 +317,12 @@ class FolderCreateRequest(BaseModel):
     sensitivity: Literal["low", "normal", "high"] = "normal"
 
 
+class FolderUpdateRequest(BaseModel):
+    """PUT /api/folders/{folder_id} body."""
+
+    sensitivity: Literal["low", "normal", "high"]
+
+
 class ActionPidRequest(BaseModel):
     """suspend / kill / resume body."""
 

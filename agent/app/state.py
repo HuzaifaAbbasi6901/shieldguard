@@ -128,6 +128,16 @@ class FolderStore:
                 self.save()
             return folder
 
+    def set_sensitivity(self, folder_id: str, sensitivity: str) -> Optional[MonitoredFolder]:
+        """Update a folder's sensitivity level and persist the change."""
+        with self._lock:
+            folder = self._folders.get(folder_id)
+            if folder is None:
+                return None
+            folder.sensitivity = sensitivity  # type: ignore[arg-type]
+            self.save()
+            return folder
+
     def get(self, folder_id: str) -> Optional[MonitoredFolder]:
         """Fetch by id."""
         with self._lock:

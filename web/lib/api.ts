@@ -144,10 +144,12 @@ export const api = {
       demoEngine.setSensitivity(folderId, sensitivity);
       return;
     }
-    // The agent contract has no dedicated endpoint; sensitivity is part of the
-    // folder object updated by re-adding. We surface a clear error instead of
-    // pretending it worked.
-    throw new ApiError(501, "Changing sensitivity requires agent v1.1+ — not available on this agent.");
+    await request<MonitoredFolder>(
+      liveBase(),
+      `/api/folders/${encodeURIComponent(folderId)}`,
+      { method: "PUT", body: JSON.stringify({ sensitivity }) },
+      DEFAULT_TIMEOUT_MS,
+    );
   },
 
   async fsList(path?: string): Promise<FsListing> {

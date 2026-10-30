@@ -9,7 +9,7 @@ from typing import Any, Dict, List
 from fastapi import APIRouter, HTTPException
 
 from api.deps import get_state, system_event
-from app.models import FolderCreateRequest, MonitoredFolder
+from app.models import FolderCreateRequest, FolderUpdateRequest, MonitoredFolder
 
 logger = logging.getLogger("shieldguard.api.folders")
 
@@ -55,6 +55,24 @@ def add_folder(body: FolderCreateRequest) -> MonitoredFolder:
     )
     logger.info("Folder added: %s", expanded)
     return folder
+
+
+@router.put("/folders/{folder_id}")
+def update_folder(folder_id: str, body: FolderUpdateRequest) -> MonitoredFolder:
+    """Change a monitored folder's sensitivity level."""
+    state = get_state()
+    folder = state.folders.get(folder_id)
+    if folder is None:
+        raise HTTPException(status_code=404, detail="Folder not found.")
+    updated = state.folders.set_sensitivity(folder_id, body.sensitivity)
+    if updated is None:  # pragma: no cover - defensive
+        raise HTTPException(status_code=404, detail="Folder not found.")
+    system_event(
+        "Folder sensitivity changed",
+        f"{updated.path} is now monitored with '{body.sensitivity}' sensitivity.",
+        folder=updated.path,
+    )
+    return updated
 
 
 @router.delete("/folders/{folder_id}")
