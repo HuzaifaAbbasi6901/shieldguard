@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240" role="img" aria-label="ShieldGuard logo">
+  <defs>
+    <linearGradient id="sg-body" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0e7490"/>
+      <stop offset="0.55" stop-color="#06b6d4"/>
+      <stop offset="1" stop-color="#34d399"/>
+    </linearGradient>
+    <linearGradient id="sg-sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.32"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.05"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="sg-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="5" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Outer ring (radar) -->
+  <circle cx="120" cy="120" r="108" fill="none" stroke="#22d3ee" stroke-opacity="0.25" stroke-width="3" stroke-dasharray="4 10"/>
+  <circle cx="120" cy="120" r="94" fill="none" stroke="#22d3ee" stroke-opacity="0.14" stroke-width="1.5"/>
+
+  <!-- Shield body -->
+  <path d="M120 22 L204 54 V118 C204 170 168 202 120 220 C72 202 36 170 36 118 V54 Z"
+        fill="url(#sg-body)" stroke="#67e8f9" stroke-width="3" stroke-linejoin="round"/>
+
+  <!-- Glass sheen -->
+  <path d="M120 22 L204 54 V118 C204 170 168 202 120 220 C72 202 36 170 36 118 V54 Z"
+        fill="url(#sg-sheen)"/>
+
+  <!-- Check mark -->
+  <path d="M78 118 L108 148 L164 88" fill="none" stroke="#04121a" stroke-width="14"
+        stroke-linecap="round" stroke-linejoin="round" filter="url(#sg-glow)"/>
+  <path d="M78 118 L108 148 L164 88" fill="none" stroke="#eafff8" stroke-width="9"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Circuit nodes -->
+  <g fill="#a5f3fc">
+    <circle cx="120" cy="48" r="4"/>
+    <circle cx="188" cy="72" r="3"/>
+    <circle cx="52" cy="72" r="3"/>
+    <circle cx="120" cy="192" r="3.5"/>
+  </g>
+</svg>

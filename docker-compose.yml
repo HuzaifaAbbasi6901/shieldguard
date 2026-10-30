@@ -1,0 +1,29 @@
+# Optional: run both ShieldGuard parts with Docker.
+# NOTE: a containerized agent can only watch folders you mount into the
+# container, and it cannot see host processes/USB drives like a native
+# install can. For real protection run `python run.py` instead.
+services:
+  agent:
+    build: ./agent
+    ports:
+      - "127.0.0.1:8787:8787"
+    volumes:
+      - shieldguard-data:/data
+      # Mount folders you want to protect, e.g.:
+      # - /home/you/Documents:/watched/Documents
+    restart: unless-stopped
+
+  web:
+    build: ./web
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      # The BROWSER talks to the agent, so from the browser's point of view
+      # the agent lives on your localhost (port is published above).
+      NEXT_PUBLIC_AGENT_URL: http://127.0.0.1:8787
+    depends_on:
+      - agent
+    restart: unless-stopped
+
+volumes:
+  shieldguard-data:
