@@ -91,7 +91,16 @@ export const DEFAULT_ACTIONS: Partial<Record<EventType, string[]>> = {
 /** Resolve the checklist for an event: prefer the event's own actions, fall back to the catalog. */
 export function actionsForEvent(event: ShieldEvent): RecommendedAction[] {
   if (event.recommended_actions && event.recommended_actions.length > 0) {
-    return event.recommended_actions;
+    // Some emitters (demo engine, older agents) send bare ids — enrich them
+    // from the catalog so the UI never shows raw identifiers.
+    return event.recommended_actions.map((a) => {
+      const known = ACTION_MAP[a.id];
+      return {
+        id: a.id,
+        label: a.label || known?.label || a.id,
+        why: a.why || known?.why || "Recommended by ShieldGuard for this kind of alert.",
+      };
+    });
   }
   const ids = DEFAULT_ACTIONS[event.type] ?? [];
   return ids
