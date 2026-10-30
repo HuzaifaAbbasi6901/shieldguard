@@ -1,4 +1,4 @@
-import { DEFAULT_ACTIONS } from "@/lib/checklists";
+import { ACTION_MAP, DEFAULT_ACTIONS } from "@/lib/checklists";
 import { levelFromScore } from "@/lib/format";
 import type {
   AllowlistEntry,
@@ -386,7 +386,14 @@ class DemoEngine {
       title: input.title,
       plain_explanation: input.plain_explanation,
       technical_details: input.technical_details ?? {},
-      recommended_actions: ids.map((id) => ({ id, label: id, why: id })),
+      recommended_actions: ids.map((id) => {
+        const known = ACTION_MAP[id];
+        return {
+          id,
+          label: known?.label ?? id,
+          why: known?.why ?? "Recommended by ShieldGuard for this kind of alert.",
+        };
+      }),
       process: input.process ?? null,
       folder: input.folder ?? null,
       score_contribution: input.score_contribution ?? 0,
@@ -398,9 +405,12 @@ class DemoEngine {
   private hydrateEventActions(event: ShieldEvent): ShieldEvent {
     if (event.recommended_actions.length === 0) return event;
     const filled = event.recommended_actions.map((a) => {
-      const known = a.label && a.why ? a : null;
-      if (known) return a;
-      return { id: a.id, label: a.label || a.id, why: a.why || a.label || a.id };
+      const known = ACTION_MAP[a.id];
+      return {
+        id: a.id,
+        label: a.label && a.label !== a.id ? a.label : known?.label ?? a.id,
+        why: a.why && a.why !== a.id ? a.why : known?.why ?? "Recommended by ShieldGuard for this kind of alert.",
+      };
     });
     return { ...event, recommended_actions: filled };
   }
