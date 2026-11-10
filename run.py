@@ -118,13 +118,14 @@ def start_agent() -> subprocess.Popen:
 
 
 def start_web() -> subprocess.Popen | None:
-    production = (WEB_DIR / ".next").exists() and (WEB_DIR / "node_modules").exists()
+    # Next.js also creates .next during development. Its presence does not
+    # prove that a production build exists, so never select 'next start'
+    # automatically. This launcher is a local development workflow.
     npm = find_npm()
     if npm is None:
         return None
-    cmd = [npm, "run", "start" if production else "dev"]
-    mode = "production" if production else "development"
-    print(f"[ShieldGuard] Starting dashboard ({mode}) on http://localhost:3000 ...")
+    cmd = [npm, "run", "dev"]
+    print("[ShieldGuard] Starting dashboard (development) on http://localhost:3000 ...")
     return subprocess.Popen(cmd, cwd=WEB_DIR, shell=IS_WINDOWS)
 
 
@@ -168,11 +169,14 @@ def main() -> None:
         return
 
     procs: list[subprocess.Popen] = []
+    proc_roles: dict[subprocess.Popen, str] = {}
     try:
         if run_agent:
             ensure_agent_deps()
-            procs.append(start_agent())
-            if wait_for("http://127.0.0.1:8787/api/health", procs[-1]):
+            agent_proc = start_agent()
+            procs.append(agent_proc)
+            proc_roles[agent_proc] = "Python agent"
+            if wait_for("http://127.0.0.1:8787/api/health", agent_proc):
                 print("[ShieldGuard] Agent is up.")
             elif procs[-1].poll() is not None:
                 raise SystemExit("[ShieldGuard] Agent failed to start - see output above.")
@@ -181,8 +185,13 @@ def main() -> None:
 
         if run_web:
             if ensure_web_deps():
-                procs.append(start_web())
-                if wait_for("http://localhost:3000", procs[-1]):
+                web_proc = start_web()
+                if web_proc is None:
+                    print("[ShieldGuard] Dashboard could not start because npm was not found.")
+                else:
+                    procs.append(web_proc)
+                    proc_roles[web_proc] = "Next.js dashboard"
+                if web_proc is not None and wait_for("http://localhost:3000", web_proc):
                     print("[ShieldGuard] Dashboard is up - opening your browser...")
                     webbrowser.open("http://localhost:3000")
                 else:
@@ -191,11 +200,21 @@ def main() -> None:
                 raise SystemExit(1)
 
         print("[ShieldGuard] Press Ctrl+C to stop everything.")
-        while True:
+        # A web build failure must not silently terminate the security agent.
+        # Continue running whichever process is still alive and report the
+        # process name and exit code for troubleshooting.
+        while procs:
             time.sleep(1)
-            for proc in procs:
-                if proc.poll() is not None:
-                    raise KeyboardInterrupt
+            for proc in list(procs):
+                exit_code = proc.poll()
+                if exit_code is not None:
+                    role = proc_roles.get(proc, "Process")
+                    print(f"[ShieldGuard] {role} exited (code {exit_code}).")
+                    if role == "Next.js dashboard":
+                        print("[ShieldGuard] Agent remains running if it is still healthy.")
+                    elif role == "Python agent":
+                        print("[ShieldGuard] Agent stopped; the dashboard may show Demo Mode.")
+                    procs.remove(proc)
     except KeyboardInterrupt:
         print("\n[ShieldGuard] Stopping...")
     finally:
