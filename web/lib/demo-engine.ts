@@ -788,7 +788,7 @@ class DemoEngine {
     return { ok: true, detail: `Program with PID ${pid} resumed.` };
   }
 
-  panic(): PanicResult {
+  panic(disableNetwork?: boolean): PanicResult {
     const s = this.state;
     const suspect: { pid: number; name: string } | null = s.simRunning === "exfiltration"
       ? { pid: 9111, name: "sim_uploader_demo.exe" }
@@ -819,19 +819,19 @@ class DemoEngine {
       detail: `Fresh safety copy saved (${(backup.size_bytes / 1_048_576).toFixed(1)} MiB).`,
     });
     let networkDisabled = false;
-    if (s.settings.panic.disable_network) {
+    if (disableNetwork ?? s.settings.panic.disable_network) {
       networkDisabled = true;
       s.networkDisabled = true;
       steps.push({
         step: "Disconnect from the network",
         success: true,
-        detail: "Network adapters were switched off (simulated in demo mode).",
+        detail: "Wi-Fi was switched off (simulated in demo mode; no real adapter was touched).",
       });
     } else {
       steps.push({
         step: "Disconnect from the network",
         success: true,
-        detail: "Skipped — you have not enabled network disconnection in Settings.",
+        detail: "Skipped — Wi-Fi disconnection was not requested.",
       });
     }
     const undoHints: string[] = [];
