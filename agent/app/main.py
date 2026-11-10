@@ -107,7 +107,8 @@ def create_app() -> FastAPI:
             if os.path.isdir(folder.path):
                 if state.settings_store.get().canaries_enabled:
                     folder.canaries = state.canaries.create_for_folder(folder.path)
-                state.monitor.watch_folder(folder.path)
+                # MonitorService.start() schedules persisted folders once the
+                # observer is running; do not try before observer startup.
 
         bus.start()
         bus.start_metrics_task()
