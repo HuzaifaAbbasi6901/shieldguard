@@ -40,16 +40,22 @@ class _RestoreBackupBody(RestoreBackupRequest):
     passphrase: Optional[str] = None
 
 
+class _PanicBody(BaseModel):
+    """Per-request opt-in. None retains the persisted Settings preference."""
+
+    disable_network: Optional[bool] = None
+
+
 # ---------------------------------------------------------------------------
 # panic
 # ---------------------------------------------------------------------------
 
 
 @router.post("/actions/panic")
-def panic() -> Dict[str, Any]:
-    """Run the panic flow: suspend suspect, snapshot, optional lockdown."""
+def panic(body: _PanicBody) -> Dict[str, Any]:
+    """Run the confirmed panic flow: suspend suspect, snapshot, optional Wi-Fi cut."""
     state = get_state()
-    result = state.panic_service.run()
+    result = state.panic_service.run(network_override=body.disable_network)
     return result.model_dump()
 
 
