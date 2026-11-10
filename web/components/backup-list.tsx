@@ -11,28 +11,41 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, friendlyError } from "@/lib/api";
+import { useAgentStore } from "@/lib/store";
 import { formatBytes, formatDate, relativeTime } from "@/lib/format";
 import type { BackupMeta } from "@/lib/types";
 
 export interface BackupListProps {
   backups: BackupMeta[] | null;
   retentionCount: number;
+  encryptSnapshots: boolean;
   onChanged: () => void;
 }
 
 /** Snapshot cards + "Create snapshot" with optional label, and restore-with-confirm. */
-export function BackupList({ backups, retentionCount, onChanged }: BackupListProps) {
+export function BackupList({ backups, retentionCount, encryptSnapshots, onChanged }: BackupListProps) {
+  const mode = useAgentStore((s) => s.mode);
   const [label, setLabel] = React.useState("");
+  const [createPassphrase, setCreatePassphrase] = React.useState("");
+  const [restorePassphrase, setRestorePassphrase] = React.useState("");
   const [creating, setCreating] = React.useState(false);
   const [restoring, setRestoring] = React.useState<BackupMeta | null>(null);
   const [busy, setBusy] = React.useState(false);
 
   const create = async (): Promise<void> => {
+    if (mode === "live" && encryptSnapshots && !createPassphrase) {
+      toast.error("Enter a passphrase to encrypt this snapshot.");
+      return;
+    }
     setCreating(true);
     try {
-      const backup = await api.createBackup(label.trim() || undefined);
+      const backup = await api.createBackup(
+        label.trim() || undefined,
+        mode === "live" && encryptSnapshots ? createPassphrase : undefined,
+      );
       toast.success("Snapshot created", { description: `${backup.label} — your safety copy is ready.` });
       setLabel("");
+      setCreatePassphrase("");
       onChanged();
     } catch (err) {
       toast.error("Could not create snapshot", { description: friendlyError(err) });
@@ -42,15 +55,23 @@ export function BackupList({ backups, retentionCount, onChanged }: BackupListPro
   };
 
   const restore = async (backup: BackupMeta): Promise<void> => {
+    if (mode === "live" && backup.encrypted && !restorePassphrase) {
+      toast.error("Enter the snapshot's passphrase to restore it.");
+      return;
+    }
     setBusy(true);
     try {
-      const res = await api.restoreBackup(backup.id);
+      const res = await api.restoreBackup(
+        backup.id,
+        mode === "live" && backup.encrypted ? restorePassphrase : undefined,
+      );
       toast.success("Backup restored", { description: `Files were placed in a NEW folder: ${res.restored_to}` });
       onChanged();
     } catch (err) {
       toast.error("Could not restore snapshot", { description: friendlyError(err) });
     } finally {
       setBusy(false);
+      setRestorePassphrase("");
       setRestoring(null);
     }
   };
@@ -66,6 +87,17 @@ export function BackupList({ backups, retentionCount, onChanged }: BackupListPro
           aria-label="Snapshot label"
           maxLength={60}
         />
+        {mode === "live" && encryptSnapshots ? (
+          <Input
+            type="password"
+            value={createPassphrase}
+            onChange={(e) => setCreatePassphrase(e.target.value)}
+            placeholder="Passphrase for this encrypted snapshot"
+            aria-label="Encryption passphrase for new snapshot"
+            autoComplete="new-password"
+            className="min-w-[220px] max-w-sm"
+          />
+        ) : null}
         <Button onClick={() => void create()} disabled={creating}>
           {creating ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Plus className="h-4 w-4" aria-hidden="true" />}
           Create snapshot
@@ -123,7 +155,7 @@ export function BackupList({ backups, retentionCount, onChanged }: BackupListPro
                     </span>
                   </div>
                   <div className="mt-3 flex justify-end">
-                    <Button size="sm" variant="secondary" onClick={() => setRestoring(backup)}>
+                    <Button size="sm" variant="secondary" onClick={() => { setRestorePassphrase(""); setRestoring(backup); }}>
                       <ArchiveRestore className="h-3.5 w-3.5" aria-hidden="true" />
                       Restore
                     </Button>
@@ -137,7 +169,7 @@ export function BackupList({ backups, retentionCount, onChanged }: BackupListPro
 
       <ConfirmDialog
         open={restoring !== null}
-        onOpenChange={(o) => !o && setRestoring(null)}
+        onOpenChange={(o) => { if (!o) { setRestoring(null); setRestorePassphrase(""); } }}
         title={`Restore “${restoring?.label ?? ""}”?`}
         loading={busy}
         confirmLabel="Restore to new folder"
@@ -148,6 +180,21 @@ export function BackupList({ backups, retentionCount, onChanged }: BackupListPro
               The snapshot will be restored into a <strong>new folder</strong> inside your backup location — nothing you
               have now will be overwritten or deleted.
             </p>
+            {mode === "live" && restoring?.encrypted ? (
+              <div className="mt-3 space-y-1">
+                <label htmlFor="restore-backup-passphrase" className="text-xs font-medium">
+                  Encryption passphrase
+                </label>
+                <Input
+                  id="restore-backup-passphrase"
+                  type="password"
+                  value={restorePassphrase}
+                  onChange={(e) => setRestorePassphrase(e.target.value)}
+                  placeholder="Passphrase used when this backup was created"
+                  autoComplete="off"
+                />
+              </div>
+            ) : null}
             {restoring ? (
               <p className="mt-2 break-all text-xs text-muted-foreground">
                 Restores to: <span className="font-mono">{"<backup location>"}\restored_&lt;timestamp&gt;</span>
