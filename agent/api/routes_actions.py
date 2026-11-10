@@ -52,10 +52,11 @@ class _PanicBody(BaseModel):
 
 
 @router.post("/actions/panic")
-def panic(body: _PanicBody) -> Dict[str, Any]:
+def panic(body: Optional[_PanicBody] = None) -> Dict[str, Any]:
     """Run the confirmed panic flow: suspend suspect, snapshot, optional Wi-Fi cut."""
     state = get_state()
-    result = state.panic_service.run(network_override=body.disable_network)
+    network_override = body.disable_network if body is not None else None
+    result = state.panic_service.run(network_override=network_override)
     return result.model_dump()
 
 
