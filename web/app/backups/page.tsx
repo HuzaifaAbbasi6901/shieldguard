@@ -130,6 +130,7 @@ export default function BackupsPage() {
             <BackupList
               backups={backups}
               retentionCount={settings?.backup.retention_count ?? 10}
+              encryptSnapshots={mode === "live" && settings?.backup.encrypt === true}
               onChanged={() => void refresh()}
             />
           )}
