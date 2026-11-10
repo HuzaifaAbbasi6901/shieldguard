@@ -12,8 +12,10 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { usePanicButton } from "@/components/panic-button-context";
+import { useAgentStore } from "@/lib/store";
 import { api, friendlyError } from "@/lib/api";
 import { formatBytes, formatDate } from "@/lib/format";
 import { toast } from "sonner";
@@ -26,6 +28,9 @@ import type { PanicResult } from "@/lib/types";
  */
 export function PanicDialog() {
   const { open, setOpen } = usePanicButton();
+  const mode = useAgentStore((s) => s.mode);
+  // Wi-Fi shutdown requires a deliberate confirmation in this dialog.
+  const [disconnectWifi, setDisconnectWifi] = React.useState(true);
   const [phase, setPhase] = React.useState<"confirm" | "running" | "result">("confirm");
   const [result, setResult] = React.useState<PanicResult | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -46,7 +51,7 @@ export function PanicDialog() {
     setPhase("running");
     setError(null);
     try {
-      const res = await api.panic();
+      const res = await api.panic(disconnectWifi);
       setResult(res);
       setPhase("result");
     } catch (err) {
@@ -73,7 +78,7 @@ export function PanicDialog() {
       open={open}
       onOpenChange={(o) => (o ? undefined : close())}
       title={phase === "confirm" ? "Use the Panic Button?" : phase === "running" ? "Running panic response…" : "Panic response finished"}
-      confirmLabel={phase === "result" ? "Run again" : "Yes, do it now"}
+      confirmLabel={phase === "result" ? "Run again" : disconnectWifi ? "Run Panic & turn off Wi-Fi" : "Run Panic (keep Wi-Fi on)"}
       cancelLabel={phase === "result" ? "Close" : "Cancel"}
       destructive={phase === "confirm"}
       loading={phase === "running"}
@@ -85,8 +90,20 @@ export function PanicDialog() {
             <ol className="list-decimal space-y-1 pl-5">
               <li>Pause any program that looks suspicious</li>
               <li>Take a fresh safety snapshot of your protected folders</li>
-              <li>Disconnect the network — only if you turned that on in Settings</li>
+              <li>Turn off Wi-Fi if selected below (Ethernet is not affected on Windows)</li>
             </ol>
+            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-amber-500/25 bg-amber-500/5 p-3 text-sm">
+              <Checkbox
+                checked={disconnectWifi}
+                onCheckedChange={setDisconnectWifi}
+                aria-label="Turn off Wi-Fi after taking the snapshot"
+              />
+              <span>
+                <strong>Turn off Wi-Fi on this computer.</strong> This interrupts wireless internet and may require
+                an Administrator-launched ShieldGuard agent. You can re-enable the adapter in Windows settings.
+                {mode === "demo" ? " (Simulated in Demo Mode.)" : ""}
+              </span>
+            </label>
             <p className="text-amber-200/90">
               This is for emergencies. Normal programs that look odd may be paused (you can resume them after).
             </p>
@@ -99,7 +116,7 @@ export function PanicDialog() {
         ) : phase === "running" ? (
           <div className="flex items-center gap-3 py-2">
             <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden="true" />
-            <span>Pausing, snapshotting, cutting the network as configured…</span>
+            <span>Pausing suspicious activity, saving a snapshot, and handling Wi-Fi as confirmed…</span>
           </div>
         ) : result ? (
           <div className="space-y-4">
@@ -137,8 +154,8 @@ export function PanicDialog() {
             {result.network_disabled ? (
               <p className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
                 <WifiOff className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                The network is disconnected. To undo it, re-enable Wi-Fi / Ethernet in your operating system&apos;s
-                network settings.
+                Wi-Fi was disabled {mode === "demo" ? "(simulated)." : "on this computer."} Follow the
+                recovery instructions below to turn it back on.
               </p>
             ) : null}
 

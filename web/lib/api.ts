@@ -180,9 +180,12 @@ export const api = {
     return request<NetworkSnapshot>(liveBase(), "/api/network", { method: "GET" }, DEFAULT_TIMEOUT_MS);
   },
 
-  async panic(): Promise<PanicResult> {
-    if (isDemo()) return demoEngine.panic();
-    return request<PanicResult>(liveBase(), "/api/actions/panic", { method: "POST", body: "{}" }, 30_000);
+  async panic(disableNetwork?: boolean): Promise<PanicResult> {
+    if (isDemo()) return demoEngine.panic(disableNetwork);
+    const body = disableNetwork === undefined ? {} : { disable_network: disableNetwork };
+    return request<PanicResult>(
+      liveBase(), "/api/actions/panic", { method: "POST", body: JSON.stringify(body) }, 90_000,
+    );
   },
 
   async suspend(pid: number): Promise<{ ok: true; detail: string }> {

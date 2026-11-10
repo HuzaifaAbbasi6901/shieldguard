@@ -168,8 +168,8 @@ export function PanicSettingsSection({ draft, update }: { draft: Settings; updat
       <CardContent>
         <ToggleRow
           id="panic-network"
-          label="Also disconnect the network"
-          hint="Strongest stop switch: pauses uploads and remote control. You will need to re-enable Wi-Fi / Ethernet afterwards by hand."
+          label="Default Wi-Fi disconnection on Panic (Windows)"
+          hint="For automated or API-triggered Panic actions, disable the laptop's physical Wi-Fi adapter (requires Administrator permissions). The dashboard Panic confirmation can override this setting for one run; Ethernet stays enabled."
           checked={draft.panic.disable_network}
           onChange={(v) => update({ panic: { disable_network: v } })}
           badge={<span className="rounded border border-rose-500/40 bg-rose-500/10 px-1.5 text-[10px] font-semibold text-rose-300">heavy-handed</span>}

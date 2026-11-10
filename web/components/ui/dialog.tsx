@@ -46,7 +46,7 @@ export function Dialog({ open, onOpenChange, children, label, className, showClo
   return createPortal(
     <AnimatePresence>
       {open ? (
-        <div className="fixed inset-0 z-[90]">
+        <div className="fixed inset-0 z-[110]">
           <motion.div
             className="fixed inset-0 bg-black/70 backdrop-blur-sm"
             initial={{ opacity: 0 }}
