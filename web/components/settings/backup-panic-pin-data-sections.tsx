@@ -79,8 +79,14 @@ export function BackupSettingsSection({
 
         <div className="space-y-1.5">
           <Label htmlFor="backup-passphrase">Snapshot passphrase</Label>
-          {b.encryption_passphrase_set ? (
-            <p className="text-sm text-emerald-300">A passphrase is set. Use the agent CLI to change it.</p>
+          {mode === "live" ? (
+            <p className="text-sm text-muted-foreground">
+              When snapshot encryption is enabled, enter a passphrase on the Backups &amp; Quarantine page
+              each time you create a snapshot. Keep it safe: ShieldGuard does not save your passphrase,
+              and you will need the same passphrase to restore that snapshot.
+            </p>
+          ) : b.encryption_passphrase_set ? (
+            <p className="text-sm text-emerald-300">Demo passphrase is set (simulated).</p>
           ) : (
             <div className="flex gap-2">
               <Input
@@ -88,23 +94,15 @@ export function BackupSettingsSection({
                 type="password"
                 value={passphrase}
                 onChange={(e) => setPassphrase(e.target.value)}
-                placeholder="Choose a long passphrase"
+                placeholder="Demo passphrase"
                 autoComplete="new-password"
               />
               <Button
                 variant="secondary"
                 disabled={passphrase.length < 8}
                 onClick={() => {
-                  // The REST contract keeps the passphrase agent-side; demo stores locally.
-                  if (mode === "demo") {
-                    update({ backup: { ...b, encryption_passphrase_set: true } });
-                    toast.success("Passphrase set (demo)");
-                  } else {
-                    toast.info("Set via agent config", {
-                      description:
-                        "For security the passphrase is never sent through the dashboard — run `shieldguard-agent set-backup-passphrase` on this computer.",
-                    });
-                  }
+                  update({ backup: { ...b, encryption_passphrase_set: true } });
+                  toast.success("Passphrase set (demo only)");
                   setPassphrase("");
                 }}
               >
