@@ -241,12 +241,12 @@ export const api = {
     );
   },
 
-  async createBackup(label?: string): Promise<BackupMeta> {
+  async createBackup(label?: string, passphrase?: string): Promise<BackupMeta> {
     if (isDemo()) return demoEngine.createBackup(label);
     return request<BackupMeta>(
       liveBase(),
       "/api/actions/backup",
-      { method: "POST", body: JSON.stringify(label ? { label } : {}) },
+      { method: "POST", body: JSON.stringify({ ...(label ? { label } : {}), ...(passphrase ? { passphrase } : {}) }) },
       60_000,
     );
   },
@@ -257,12 +257,12 @@ export const api = {
     return res.backups;
   },
 
-  async restoreBackup(id: string): Promise<{ ok: true; restored_to: string }> {
+  async restoreBackup(id: string, passphrase?: string): Promise<{ ok: true; restored_to: string }> {
     if (isDemo()) return demoEngine.restoreBackup(id);
     return request<{ ok: true; restored_to: string }>(
       liveBase(),
       "/api/actions/restore_backup",
-      { method: "POST", body: JSON.stringify({ id }) },
+      { method: "POST", body: JSON.stringify({ id, ...(passphrase ? { passphrase } : {}) }) },
       60_000,
     );
   },
