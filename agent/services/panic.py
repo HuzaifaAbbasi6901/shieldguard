@@ -1,7 +1,8 @@
-"""Panic button: suspend top suspect, snapshot backup, optionally cut network.
+"""Panic button: suspend suspect, snapshot backup, optionally disable Wi-Fi.
 
-NEVER kills anything. Network lockdown captures the original firewall state to
-an undo file and only runs when the user opted in via settings.
+NEVER kills a process. On Windows the confirmed network action disables only
+physical Wi-Fi adapters (never Ethernet or firewall policy); it does not try
+to elevate privileges. Adapter names are saved for manual restoration.
 """
 
 from __future__ import annotations
@@ -42,8 +43,8 @@ class PanicService:
     def __init__(self, state: AppState) -> None:
         self.state = state
 
-    def run(self) -> PanicResult:
-        """Execute the panic flow and return the result."""
+    def run(self, network_override: Optional[bool] = None) -> PanicResult:
+        """Execute the confirmed panic flow; optionally override network opt-in."""
         steps: List[PanicStep] = []
         suspended: List[ProcessInfo] = []
         backup_meta: Optional[BackupMeta] = None
@@ -90,8 +91,13 @@ class PanicService:
             logger.exception("Panic backup failed")
             steps.append(PanicStep(step="snapshot", success=False, detail=f"Backup failed: {exc}"))
 
-        # 3) optional network lockdown (user opt-in only)
-        if self.state.settings_store.get().panic.disable_network:
+        # 3) network isolation only with an explicit confirmed request (or
+        # the pre-existing opt-in setting for older API clients).
+        network_requested = (
+            self.state.settings_store.get().panic.disable_network
+            if network_override is None else network_override
+        )
+        if network_requested:
             step, hints = self._disable_network()
             steps.append(step)
             network_disabled = step.success
@@ -101,7 +107,7 @@ class PanicService:
                 PanicStep(
                     step="disable_network",
                     success=True,
-                    detail="Skipped — network lockdown is not enabled in Settings.",
+                    detail="Skipped — Wi-Fi disconnection was not requested.",
                 )
             )
 
@@ -145,7 +151,7 @@ class PanicService:
     # -- network lockdown ------------------------------------------------------
 
     def _disable_network(self) -> tuple[PanicStep, List[str]]:
-        """OS-specific outbound firewall lockdown with undo hints."""
+        """OS-specific network isolation with manual recovery instructions."""
         system = platform.system()
         undo_file = self.state.data_dir / UNDO_FILE
         if system == "Windows":
@@ -164,35 +170,96 @@ class PanicService:
         )
 
     def _windows_lockdown(self, undo_file: Path) -> tuple[PanicStep, List[str]]:
-        # capture the original policy so it can be restored later
-        before = _run_cmd(
-            ["netsh", "advfirewall", "show", "allprofiles", "firewallpolicy"]
+        """Disable enabled *physical Wi-Fi* adapters, leaving Ethernet untouched.
+
+        The operation requires the agent to already have administrator rights.
+        We never launch an elevation prompt or modify Windows Firewall policy.
+        """
+        recovery = [
+            "To restore Wi-Fi, open Windows Settings > Network & internet > "
+            "Advanced network settings, then enable the Wi-Fi adapter.",
+            "Alternatively, run Get-NetAdapter -Physical in Administrator "
+            "PowerShell to find the wireless adapter name.",
+        ]
+        # No user-controlled command fragments: adapter discovery and disable
+        # happen in one fixed PowerShell script. -Physical avoids virtual/VPN
+        # adapters; Name/Description covers localized/custom Wi-Fi aliases.
+        script = r"""
+$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
+$wifi = @(Get-NetAdapter -Physical -ErrorAction Stop | Where-Object {
+  ($_.Name -match '(?i)wi[- ]?fi|wlan|wireless' -or
+   $_.InterfaceDescription -match '(?i)wi[- ]?fi|wlan|wireless|802\.11') -and
+  $_.Status -in @('Up', 'Disconnected')
+})
+if ($wifi.Count -eq 0) {
+  Write-Error 'No enabled physical Wi-Fi adapter was found.'
+  exit 2
+}
+$names = @($wifi | ForEach-Object { $_.Name })
+foreach ($adapter in $wifi) {
+  $adapter | Disable-NetAdapter -Confirm:$false -ErrorAction Stop
+}
+[pscustomobject]@{disabled=$names} | ConvertTo-Json -Compress
+"""
+        result = _run_cmd(
+            ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
+            timeout=30.0,
         )
+        if result.returncode != 0:
+            reason = (result.stderr or result.stdout).strip()
+            if "Access is denied" in reason or "permission" in reason.lower():
+                detail = (
+                    "Windows refused to disable Wi-Fi. Start the ShieldGuard "
+                    "agent from an Administrator PowerShell window and try again."
+                )
+            elif "No enabled physical Wi-Fi adapter" in reason:
+                detail = "No enabled Wi-Fi adapter was found; Wi-Fi may already be off."
+            else:
+                detail = "Could not disable Wi-Fi: " + (reason[:220] or "PowerShell command failed.")
+            return PanicStep(step="disable_network", success=False, detail=detail), recovery
+
+        try:
+            parsed = json.loads(result.stdout.strip())
+            names = parsed["disabled"]
+            if not isinstance(names, list) or not names or any(
+                not isinstance(n, str) or not n for n in names
+            ):
+                raise ValueError("invalid adapter list")
+        except (ValueError, KeyError, TypeError) as exc:
+            logger.warning("Wi-Fi disable reported unexpected output: %s", exc)
+            return (
+                PanicStep(
+                    step="disable_network",
+                    success=False,
+                    detail="Could not verify which Wi-Fi adapters were disabled. Check Windows Network settings.",
+                ),
+                recovery,
+            )
+
         try:
             undo_file.write_text(
-                json.dumps({"os": "windows", "before": before.stdout}, indent=2),
+                json.dumps({"os": "windows", "wifi_adapters": names}, indent=2),
                 encoding="utf-8",
             )
-        except OSError:  # pragma: no cover - best effort
-            pass
-        result = _run_cmd(
-            [
-                "netsh", "advfirewall", "set", "allprofiles", "firewallpolicy",
-                "blockinbound,blockoutbound",
-            ]
+        except OSError as exc:
+            logger.warning("Could not save Wi-Fi recovery information: %s", exc)
+
+        # Use PowerShell single-quote escaping only for a displayed recovery
+        # command; no dynamically supplied values are ever executed.
+        for name in names:
+            quoted = "'" + name.replace("'", "''") + "'"
+            recovery.append(
+                f"Administrator PowerShell: Enable-NetAdapter -Name {quoted} -Confirm:$false"
+            )
+        return (
+            PanicStep(
+                step="disable_network",
+                success=True,
+                detail="Turned off Wi-Fi adapter(s): " + ", ".join(names) + ".",
+            ),
+            recovery,
         )
-        ok = result.returncode == 0
-        detail = (
-            "Windows Firewall now blocks all inbound and outbound traffic."
-            if ok
-            else f"Could not change the firewall ({(result.stderr or result.stdout).strip()[:120]})."
-        )
-        hints = [
-            "To undo: run 'netsh advfirewall set allprofiles firewallpolicy "
-            "blockinbound,allowoutbound' as Administrator,",
-            f"or restore the policy shown in {undo_file}.",
-        ]
-        return PanicStep(step="disable_network", success=ok, detail=detail), hints
 
     def _linux_lockdown(self) -> tuple[PanicStep, List[str]]:
         result = _run_cmd(["nmcli", "networking", "off"])
